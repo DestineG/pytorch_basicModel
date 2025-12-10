@@ -38,9 +38,13 @@ def single_inference(content_path, style_path, model_path=None, img_size=512, al
 
 
 if __name__ == "__main__":
-    content_path = "path_to_content.jpg"
-    style_path = "path_to_style.jpg"
-    model_path = None  # 或者指定训练好的.pth文件
-    output_img = single_inference(content_path, style_path, model_path, img_size=512, alpha=1.0)
-    output_img.show()  # 弹窗显示
-    output_img.save("output.jpg")  # 保存
+    content_name = "avril"
+    # weight_name = "adain_model_final"
+    weight_name = "adain_model_epoch_90"
+    content_path = f"./figures/content/{content_name}.jpg"
+    style_name_list = ["1", "2", "3", "4", "5", "6"]
+    for style_name in style_name_list:
+        style_path = f"./figures/style/{style_name}.jpg"
+        model_path = f"checkpoints/{weight_name}.pth"
+        output_img = single_inference(content_path, style_path, model_path, img_size=512, alpha=1.0)
+        output_img.save(f"./figures/output/{weight_name}_{content_name}_to_{style_name}.jpg")  # 保存

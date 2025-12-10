@@ -22,7 +22,7 @@ class StyleTransferDataset(Dataset):
         print(f"找到 {len(self.style_images)} 张风格图像")
     
     def __len__(self):
-        return max(len(self.content_images), len(self.style_images))
+        return 2000
     
     def __getitem__(self, idx):
         # 循环使用图像
