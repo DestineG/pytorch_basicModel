@@ -15,10 +15,10 @@ def get_opt():
                        help='内容图像目录路径')
     parser.add_argument('--style_dir', type=str, required=True,
                        help='风格图像目录路径')
-    parser.add_argument('--batch_size', type=int, default=4,
-                       help='批次大小 (默认: 4)')
-    parser.add_argument('--num_epochs', type=int, default=10,
-                       help='训练轮数 (默认: 10)')
+    parser.add_argument('--batch_size', type=int, default=8,
+                       help='批次大小 (默认: 8)')
+    parser.add_argument('--num_epochs', type=int, default=100,
+                       help='训练轮数 (默认: 100)')
     parser.add_argument('--lr', type=float, default=0.0001,
                        help='学习率 (默认: 0.0001)')
     parser.add_argument('--content_weight', type=float, default=1.0,
@@ -84,6 +84,6 @@ def main():
     )
 
 
-# python train.py --content_dir G:\datasets\coco2014\train --style_dir G:\datasets\coco2014\style
+# python train.py --content_dir /dataroot/liujiang/data/datasets/coco2014/val --style_dir /dataroot/liujiang/data/datasets/coco2014/style
 if __name__ == '__main__':
     main()
