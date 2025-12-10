@@ -287,15 +287,8 @@ def parse_args():
     return p.parse_args()
 
 
-# python ulyanov_pytorch.py \
-#   --content_dir ./content_images \
-#   --style_image ./style.jpg \
-#   --epochs 2 \
-#   --batch_size 4 \
-#   --save_model model.pth \
-#   --output_dir outputs
-
-# python -m  chapter4-6-Ulyanov.model --content_dir G:\datasets\coco2014\val2014 --style_image G:\datasets\coco2014\style.jpg --epochs 2 --save_model model.pth --output_dir outputs
+# python -m  model --content_dir /dataroot/liujiang/data/datasets/coco2014/val --style_image /dataroot/liujiang/data/datasets/coco2014/style.jpg --epochs 20 --save_model model.pth --output_dir outputs > train.log
+# python -m  model --content_dir /dataroot/liujiang/data/datasets/coco2014/val --style_image /dataroot/liujiang/data/datasets/coco2014/style.jpg --epochs 20 --output_dir outputs > train.log
 
 # python ulyanov_pytorch.py --eval --checkpoint model.pth --content_image ./some.jpg --output outputs/result.jpg
 if __name__ == "__main__":
