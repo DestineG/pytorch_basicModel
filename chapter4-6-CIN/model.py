@@ -129,8 +129,8 @@ def train():
     pass
 
 if __name__ == "__main__":
-    x = torch.randn(4, 3, 256, 256)  # batch size 4
+    x = torch.randn(4, 3, 512, 512)  # batch size 4
     style_id = 2  # 使用风格 2
     model = StyleTransferCIN(num_styles=5)
     out = model(x, style_id)
-    print(out.shape)  # 应该是 [4, 3, 256, 256]
+    print(out.shape)  # 应该是 [4, 3, 512, 512]
