@@ -54,7 +54,7 @@ def loss_function(recon_x, x, mu, logvar):
     # kld = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
     # return bce + kld, bce, kld
 
-    # 同样将(mu, logvar)约束到(0, 1) 收敛到1.6，-7
+    # 同样将(mu, logvar)约束到(0, 1) 收敛到-0.12，-1.32
     reg = 0.5 * torch.sum(mu.pow(2) + logvar.pow(2))
     return bce + reg, bce, reg
 
