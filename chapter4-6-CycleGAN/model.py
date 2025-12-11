@@ -1,7 +1,10 @@
 # chapter4-6-CycleGAN/model.py
 
+import os
+from tqdm import tqdm
 import torch
 import torch.nn as nn
+from torchvision.utils import save_image
 
 from data import create_dataloader
 
@@ -158,31 +161,51 @@ def train_step(model, real_A, real_B, optim_D, optim_G, D_criterion, cyc_criteri
     loss_cycle_A = cyc_criterion(cyc_A, real_A)
     loss_cycle_B = cyc_criterion(cyc_B, real_B)
     loss_cycle = loss_cycle_A + loss_cycle_B
-    total_G_loss = loss_G + loss_cycle
+    total_G_loss = loss_G + 10 * loss_cycle
     total_G_loss.backward()
     optim_G.step()
 
-    return total_D_loss.item(), total_G_loss.item()
+    return total_D_loss.item(), total_G_loss.item(), fake_B, fake_A, cyc_A, cyc_B
 
 def train(model, dataloader, optim_D, optim_G):
     D_criterion = nn.MSELoss()
     cyc_criterion = nn.L1Loss()
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    num_epochs = 100
+    num_epochs = 1000
+    checkpoint_dir = "./checkpoints"
+    os.makedirs(checkpoint_dir, exist_ok=True)
+    save_dir = "./log/images"
+    os.makedirs(save_dir, exist_ok=True)
     model.to(device)
+    global_step = 0
     for epoch in range(num_epochs):
-        for iter, batch in enumerate(dataloader):
+        loop = tqdm(dataloader, desc=f"Epoch [{epoch+1}/{num_epochs}]", leave=False, ascii=True)
+        for iter, batch in enumerate(loop):
             batch = {k: v.to(device) for k, v in batch.items()}
             real_A = batch['real_A']
             real_B = batch['real_B']
-            loss_D, loss_G = train_step(model, real_A, real_B, optim_D, optim_G, D_criterion, cyc_criterion)
-            if (iter + 1) % 10 == 0:
-                print(f"Epoch [{epoch+1}/{num_epochs}]  Iter [{iter+1}/{len(dataloader)}]  Loss_D: {loss_D:.4f}  Loss_G: {loss_G:.4f}")
 
-        if epoch % 10 == 0:
-            torch.save(model.state_dict(), f'checkpoints/cyclegan_epoch_{epoch+1}.pth')
+            loss_D, loss_G, fake_B, fake_A, cyc_A, cyc_B = train_step(
+                model, real_A, real_B, optim_D, optim_G, D_criterion, cyc_criterion
+            )
+
+            # 更新 tqdm 显示的描述信息
+            loop.set_postfix({'Loss_D': f'{loss_D:.4f}', 'Loss_G': f'{loss_G:.4f}'})
+
+            # 每500 iter保存一次
+            if (global_step + 1) % 500 == 0:
+                save_image(real_A[0], os.path.join(save_dir, f'epoch{epoch+1}_iter{global_step+1}_real_A.png'))
+                save_image(real_B[0], os.path.join(save_dir, f'epoch{epoch+1}_iter{global_step+1}_real_B.png'))
+                save_image(fake_A[0], os.path.join(save_dir, f'epoch{epoch+1}_iter{global_step+1}_fake_A.png'))
+                save_image(fake_B[0], os.path.join(save_dir, f'epoch{epoch+1}_iter{global_step+1}_fake_B.png'))
+                save_image(cyc_A[0], os.path.join(save_dir, f'epoch{epoch+1}_iter{global_step+1}_cyc_A.png'))
+                save_image(cyc_B[0], os.path.join(save_dir, f'epoch{epoch+1}_iter{global_step+1}_cyc_B.png'))
+            global_step += 1
+        loop.close()
+        if (epoch + 1) % 10 == 0:
+            torch.save(model.state_dict(), os.path.join(checkpoint_dir, f'cyclegan_epoch_{epoch+1}.pth'))
     
-    torch.save(model.state_dict(), 'checkpoints/cyclegan_final.pth')
+    torch.save(model.state_dict(), os.path.join(checkpoint_dir, 'cyclegan_final.pth'))
 
 def test():
     # 测试CycleGAN生成器和判别器的前向传播
@@ -198,13 +221,13 @@ def test():
     print("Discriminator output shape:", D_out.shape)  # 应该是 [2, 1, 30, 30] (256/8=32, 减去边界效应)
 
 if __name__ == "__main__":
-    dir_A = "./data/domain_A"
-    dir_B = "./data/domain_B"
+    dir_A = "/dataroot/liujiang/data/datasets/DF2K/DF2K_train_HR"
+    dir_B = "/dataroot/liujiang/data/datasets/CVCInfrared/train/HR"
     dataloader = create_dataloader(
         dir_A=dir_A,
         dir_B=dir_B,
-        img_size=512,
-        batch_size=4,
+        img_size=256,
+        batch_size=8,
         load_to = 'memory'
     )
     model = CycleGANModel()
