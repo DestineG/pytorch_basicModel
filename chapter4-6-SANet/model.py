@@ -8,6 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchvision.utils import save_image
 from torchvision.models import vgg19, VGG19_Weights
+from torchvision import transforms
 
 from data import create_dataloader
 
@@ -103,7 +104,7 @@ class Decoder(nn.Module):
             # 64 → 3（输出 RGB）
             nn.ReflectionPad2d(1),
             nn.Conv2d(64, 3, kernel_size=3, padding=0),
-            nn.Tanh()
+            nn.Sigmoid(),
         )
 
     def forward(self, x):
@@ -187,6 +188,15 @@ class SANetLoss(nn.Module):
             style_layers: 用于计算风格损失的层索引
         """
         super(SANetLoss, self).__init__()
+
+        self.transform = transforms.Compose(
+            [
+                transforms.Normalize(
+                    mean=[0.485, 0.456, 0.406],
+                    std=[0.229, 0.224, 0.225]
+                )
+            ]
+        )
         
         self.content_weight = content_weight
         self.style_weight = style_weight
@@ -250,16 +260,15 @@ class SANetLoss(nn.Module):
         """
         计算总损失
         Args:
-            output: 模型生成的图像 [B, 3, H, W]，范围 [-1, 1]
-            content: 内容图像 [B, 3, H, W]，范围 [-1, 1]
-            style: 风格图像 [B, 3, H, W]，范围 [-1, 1]
+            output: 模型生成的图像 [B, 3, H, W]，范围 [0, 1]
+            content: 内容图像 [B, 3, H, W]，范围 [0, 1]
+            style: 风格图像 [B, 3, H, W]，范围 [0, 1]
         Returns:
             dict: 包含各项损失的字典
         """
-        # 归一化输入到 [0, 1] 范围（VGG 需要）
-        content_norm = (content + 1) / 2  # 从 [-1, 1] 转换到 [0, 1]
-        style_norm = (style + 1) / 2
-        output_norm = (output + 1) / 2
+        content_norm = self.transform(content)
+        style_norm = self.transform(style)
+        output_norm = self.transform(output)
         
         # 提取特征
         content_feats = self._get_vgg_features(self.vgg_features, content_norm, self.content_layers)
@@ -300,6 +309,7 @@ def train(model, dataloader, optim, criterion):
     save_dir = "./log/images"
     os.makedirs(save_dir, exist_ok=True)
     model.to(device)
+    criterion.to(device)
     global_step = 0
     for epoch in range(num_epochs):
         loop = tqdm(dataloader, desc=f"Epoch [{epoch+1}/{num_epochs}]", leave=False, ascii=True)
@@ -318,6 +328,7 @@ def train(model, dataloader, optim, criterion):
 
             # 更新 tqdm 显示的描述信息
             loop.set_postfix({
+                'Loss_Total': f'{losses["total_loss"]:.4f}',
                 'Loss_Content': f'{losses["content_loss"]:.4f}',
                 'Loss_Style': f'{losses["style_loss"]:.4f}',
                 'Loss_TV': f'{losses["tv_loss"]:.4f}'
@@ -325,8 +336,9 @@ def train(model, dataloader, optim, criterion):
 
             # 每500 iter保存一次
             if (global_step + 1) % 500 == 0:
-                save_image(content[0], os.path.join(save_dir, f'epoch{epoch+1}_iter{global_step+1}_content.png'))
-                save_image(style[0], os.path.join(save_dir, f'epoch{epoch+1}_iter{global_step+1}_style.png'))
+                save_image(torch.clamp(content[0], 0, 1), os.path.join(save_dir, f'epoch{epoch+1}_iter{global_step+1}_content.png'))
+                save_image(torch.clamp(style[0], 0, 1), os.path.join(save_dir, f'epoch{epoch+1}_iter{global_step+1}_style.png'))
+                save_image(torch.clamp(output[0], 0, 1), os.path.join(save_dir, f'epoch{epoch+1}_iter{global_step+1}_output.png'))
             global_step += 1
         loop.close()
         if (epoch + 1) % 10 == 0:
@@ -365,6 +377,6 @@ if __name__ == "__main__":
 
     model = SANetModel()
     optim = torch.optim.Adam(model.parameters(), lr=1e-4)
-    criterion = SANetLoss(content_weight=1.0, style_weight=10.0, tv_weight=1e-4)
+    criterion = SANetLoss(content_weight=1.0, style_weight=3e4, tv_weight=1e-4)
 
     train(model, dataloader, optim, criterion)

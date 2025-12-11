@@ -43,7 +43,7 @@ class UnpairedImageDataset(Dataset):
             self.transform = transforms.Compose(
                 [
                     transforms.Resize((256, 256)),
-                    transforms.ToTensor()
+                    transforms.ToTensor(),
                 ]
             )
         else:
@@ -101,7 +101,7 @@ def create_dataloader(
         transform=transforms.Compose(
             [
                 transforms.Resize((img_size, img_size)),
-                transforms.ToTensor()
+                transforms.ToTensor(),
             ]
         ),
         serial_batches=serial_batches,
