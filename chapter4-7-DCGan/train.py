@@ -1,7 +1,7 @@
 # chapter4-7-DCGan/train.py
 
 import os
-from tdqm import tqdm
+from tqdm import tqdm
 from pathlib import Path
 
 import torch
@@ -27,14 +27,14 @@ def get_data_loader(data_root: str, batch_size: int):
 
 
 def train(
-    epochs: int = 500,
+    epochs: int = 5000,
     batch_size: int = 128,
     latent_dim: int = 100,
     lr: float = 2e-4,
     beta1: float = 0.5,
     data_root: str = "./data",
     out_dir: str = "./outputs",
-    device: str | torch.device = None,
+    device: str = None,
 ):
     device = torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))
     Path(out_dir).mkdir(parents=True, exist_ok=True)
