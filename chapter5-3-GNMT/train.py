@@ -7,6 +7,7 @@ Usage (example):
 import argparse
 import math
 from pathlib import Path
+from tqdm import tqdm
 
 import torch
 import torch.nn as nn
@@ -21,7 +22,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Train GNMT on zh-en corpus.")
     parser.add_argument("--csv", type=str, required=True, help="Path to CSV dataset.")
     parser.add_argument("--batch-size", type=int, default=32)
-    parser.add_argument("--epochs", type=int, default=1)
+    parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--embed-size", type=int, default=512)
     parser.add_argument("--hidden-size", type=int, default=512)
@@ -33,7 +34,7 @@ def parse_args():
     parser.add_argument("--clip", type=float, default=1.0, help="Grad clipping max norm.")
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--log-interval", type=int, default=100)
-    parser.add_argument("--save", type=str, default=None, help="Path to save model checkpoint.")
+    parser.add_argument("--save", type=str, default="./checkpoints/gnmt.pth", help="Path to save model checkpoint.")
     return parser.parse_args()
 
 
@@ -70,6 +71,7 @@ def train_one_epoch(model, dataloader, optimizer, criterion, device, clip_norm, 
     return avg_loss
 
 
+# python train.py --csv /dataroot/liujiang/data/datasets/wmt_zh_en_training_corpus.csv
 def main():
     args = parse_args()
     device = torch.device(args.device)
@@ -101,7 +103,8 @@ def main():
     print(f"Vocab size: {vocab_size}")
     print(f"Training samples: {len(dataset)}")
 
-    for epoch in range(1, args.epochs + 1):
+    p = tqdm(range(1, args.epochs + 1), desc="Epochs", leave=False, ascii=True)
+    for epoch in p:
         avg_loss = train_one_epoch(
             model,
             dataloader,
@@ -112,7 +115,7 @@ def main():
             args.log_interval,
         )
         ppl = math.exp(avg_loss)
-        print(f"Epoch {epoch} done. avg_loss={avg_loss:.4f}, ppl={ppl:.2f}")
+        p.set_postfix({"avg_loss": f"{avg_loss:.4f}", "ppl": f"{ppl:.2f}"})
 
     if args.save:
         ckpt_path = Path(args.save)
