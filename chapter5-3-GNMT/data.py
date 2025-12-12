@@ -105,8 +105,21 @@ class TranslationDataset(Dataset):
         self.tgt_col = tgt_col
         self.tokenizer = tokenizer
 
-        src_texts = [tokenizer(t) for t in self.df[src_col].tolist()]
-        tgt_texts = [tokenizer(t) for t in self.df[tgt_col].tolist()]
+        # Support both integer (positional) and string (column name) indexing
+        # If column is integer, use iloc for positional access (works with or without header)
+        # If column is string, use column name access
+        if isinstance(src_col, int):
+            src_series = self.df.iloc[:, src_col]
+        else:
+            src_series = self.df[src_col]
+        
+        if isinstance(tgt_col, int):
+            tgt_series = self.df.iloc[:, tgt_col]
+        else:
+            tgt_series = self.df[tgt_col]
+
+        src_texts = [tokenizer(str(t)) for t in src_series.tolist()]
+        tgt_texts = [tokenizer(str(t)) for t in tgt_series.tolist()]
 
         if vocab is None:
             # build a shared vocab over both sides (simple but sufficient)
