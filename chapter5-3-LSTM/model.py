@@ -54,7 +54,7 @@ class LSTM(nn.Module):
         self.layers = nn.ModuleList(layers)
 
     # 单词排队前向传播
-    # 单词前向传播时会在每个cell会留下memory和hidden，供下个单词参考
+    # 单词前向传播时会在每个cell会留下memory和hidden，供下个单词经过该cell时参考
     # 每个cell的x除了第一个之外都是上一个cell的hidden
     # 个人理解：之所以用fc(hidden)作为输出，是因为在lstm结构中暗含着hidden中含有下一个单词的信息(以hidden作为下一个cell的输入，而下一个cell的输入就是下一个单词)
     def forward(self, input):
