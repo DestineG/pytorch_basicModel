@@ -44,11 +44,15 @@ class Vocab:
             tokens_and_freq = tokens_and_freq[: max(0, max_size - len(self.itos))]
 
         for token, freq in tokens_and_freq:
+            # 若不满足最低频次
             if freq < min_freq:
                 continue
+            # 若已在字典中
             if token in self.stoi:
                 continue
+            # 更新字典
             self.stoi[token] = len(self.itos)
+            # 更新列表
             self.itos.append(token)
 
     def __len__(self):
@@ -100,7 +104,10 @@ class TranslationDataset(Dataset):
         max_size: Optional[int] = None,
     ):
         super().__init__()
-        self.df = pd.read_csv(csv_path)
+
+        # 卡在这里了 减少数据量
+        print("Reading data...")
+        self.df = pd.read_csv(csv_path, nrows=1000)
         self.src_col = src_col
         self.tgt_col = tgt_col
         self.tokenizer = tokenizer
@@ -108,6 +115,7 @@ class TranslationDataset(Dataset):
         # Support both integer (positional) and string (column name) indexing
         # If column is integer, use iloc for positional access (works with or without header)
         # If column is string, use column name access
+        print("Splitting data...")
         if isinstance(src_col, int):
             src_series = self.df.iloc[:, src_col]
         else:
@@ -118,15 +126,20 @@ class TranslationDataset(Dataset):
         else:
             tgt_series = self.df[tgt_col]
 
+        print("Tokenizing dataset...")
         src_texts = [tokenizer(str(t)) for t in src_series.tolist()]
         tgt_texts = [tokenizer(str(t)) for t in tgt_series.tolist()]
 
+        print("Building vocabulary...")
         if vocab is None:
             # build a shared vocab over both sides (simple but sufficient)
             self.vocab = build_vocab(src_texts + tgt_texts, min_freq=min_freq, max_size=max_size)
         else:
             self.vocab = vocab
 
+        # 将语句离散化，添加起始符和结束符
+        # List[List[str]] -> List[List[int]]
+        print("Numericalizing dataset...")
         self.src = [self._numericalize(toks) for toks in src_texts]
         self.tgt = [self._numericalize(toks) for toks in tgt_texts]
 
@@ -141,16 +154,21 @@ class TranslationDataset(Dataset):
         return self.src[idx], self.tgt[idx]
 
     def collate_fn(self, batch: List[Tuple[List[int], List[int]]]):
+        # 源语句列表,目标语句列表
         src_seqs, tgt_seqs = zip(*batch)
         src_lengths = torch.tensor([len(s) for s in src_seqs], dtype=torch.long)
         tgt_lengths = torch.tensor([len(t) for t in tgt_seqs], dtype=torch.long)
 
+        # 源语句和目标语句的最大长度
         max_src = max(src_lengths).item()
         max_tgt = max(tgt_lengths).item()
 
+        # 在句子尾部标识符后填充，使其长度一致
         def pad(seqs, max_len):
+            # 初始化输出张量，全部填充为pad_id
             out = torch.full((len(seqs), max_len), self.vocab.pad_id, dtype=torch.long)
             for i, seq in enumerate(seqs):
+                # 将语句填充到对应位置
                 out[i, : len(seq)] = torch.tensor(seq, dtype=torch.long)
             return out
 
@@ -171,6 +189,7 @@ def create_dataloader(
     min_freq: int = 1,
     max_size: Optional[int] = None,
 ) -> Tuple[DataLoader, TranslationDataset]:
+    print("Building dataset...")
     dataset = TranslationDataset(
         csv_path=csv_path,
         src_col=src_col,
@@ -180,6 +199,7 @@ def create_dataloader(
         min_freq=min_freq,
         max_size=max_size,
     )
+    print("Building loader...")
     loader = DataLoader(
         dataset,
         batch_size=batch_size,

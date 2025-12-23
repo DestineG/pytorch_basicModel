@@ -339,6 +339,6 @@ def main():
         parser.error("Either --text or --input-file must be provided")
 
 
+# python infer.py --checkpoint ./checkpoints/gnmt.pth --input-file ./test/input.txt --output-file ./test/result.txt --beam-size 5
 if __name__ == "__main__":
     main()
-

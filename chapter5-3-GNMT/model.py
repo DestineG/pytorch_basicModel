@@ -94,6 +94,8 @@ class GNMTEncoder(nn.Module):
         """
         max_src_len = src_tokens.size(1)
         embed = self.embed(src_tokens)
+        # 提取每个时间步的有效长度
+        # (batch, max_src_len, embed) -> PackedSequence
         packed = nn.utils.rnn.pack_padded_sequence(
             embed, lengths.cpu(), batch_first=True, enforce_sorted=False
         )
@@ -103,7 +105,9 @@ class GNMTEncoder(nn.Module):
         cell_states = []
         residual_input = None
         for idx, layer in enumerate(self.layers):
+            # 输出(PackedSequence), 隐藏状态, 记忆状态
             packed_out, (h_n, c_n) = layer(packed)
+            # 恢复(pad)为统一长度的tensor
             out, _ = nn.utils.rnn.pad_packed_sequence(
                 packed_out, batch_first=True, total_length=max_src_len
             )
@@ -115,11 +119,12 @@ class GNMTEncoder(nn.Module):
                 c_n = c_n.view(2, c_n.size(1), c_n.size(2))
                 h_n = h_n.sum(0, keepdim=True)
                 c_n = c_n.sum(0, keepdim=True)
-            # Residual from layer 2 and above (idx >= 2)
+            # 第二层及以后添加残差
             if residual_input is not None and idx >= 2:
                 out = out + residual_input
             out = self.dropout(out) if idx + 1 < self.num_layers else out
             residual_input = out
+            # 提取每个时间步的有效长度
             packed = nn.utils.rnn.pack_padded_sequence(
                 out, lengths.cpu(), batch_first=True, enforce_sorted=False
             )
@@ -191,19 +196,26 @@ class GNMTDecoder(nn.Module):
             h = [h[i] for i in range(self.num_layers)]
             c = [c[i] for i in range(self.num_layers)]
 
+        # (batch, max_tgt_len, embed)
         embeddings = self.embed(tgt_tokens)
         context = torch.zeros(batch_size, self.hidden_size, device=device)
         outputs = []
         attn_scores = []
 
         for t in range(tgt_len):
+            # (batch, embed) 第一个时间步都是BOS
+            # 训练时使用teacher forcing，直接使用目标词的embedding
+            # 推理时使用上一个时间步预测的词的embedding
             emb_t = embeddings[:, t, :]
+            # (batch, embed + hidden)
             layer_input = torch.cat([emb_t, context], dim=-1)
             new_h = []
             new_c = []
+            # 逐层LSTMCell前向传播
             for idx, cell in enumerate(self.layers):
                 # Save input for residual connection (layers >= 2)
                 residual = layer_input if idx >= 2 else None
+                # (batch, embed + hidden) -> (batch, hidden), (batch, hidden)
                 h_t, c_t = cell(layer_input, (h[idx], c[idx]))
                 if residual is not None:
                     h_t = h_t + residual
@@ -212,8 +224,15 @@ class GNMTDecoder(nn.Module):
                 new_c.append(c_t)
             h, c = new_h, new_c
 
-            context, attn = self.attn(h[-1], encoder_outputs, encoder_outputs, src_mask)
+            # (batch, hidden), (batch, max_src_len)
+            context, attn = self.attn(
+                h[-1],                  # Q: (batch, hidden)
+                encoder_outputs,        # K: (batch, max_src_len, hidden)
+                encoder_outputs,        # V: (batch, max_src_len, hidden)
+                src_mask                # mask: (batch, max_src_len)
+            )
             attn_scores.append(attn)
+            # (batch, 2 * hidden) -> (batch, vocab), 用当前词和源语言语句的特征池预测下一个词
             logits = self.out_proj(torch.cat([h[-1], context], dim=-1))
             outputs.append(logits)
 
@@ -236,6 +255,7 @@ class GNMT(nn.Module):
         pad_id: int = 0,
     ):
         super().__init__()
+        # 源语言特征池提取器
         self.encoder = GNMTEncoder(
             vocab_size=src_vocab,
             embed_size=embed_size,
@@ -244,6 +264,7 @@ class GNMT(nn.Module):
             dropout=dropout,
             pad_id=pad_id,
         )
+        # 自回归预测器(encoder生成的特征池为decoder指定预测方向)
         self.decoder = GNMTDecoder(
             vocab_size=tgt_vocab,
             embed_size=embed_size,
@@ -263,6 +284,7 @@ class GNMT(nn.Module):
             logits: (batch, tgt_len, tgt_vocab)
             attn: (batch, tgt_len, src_len)
         """
+        # (B, max_src_len, embed) -> (B, max_src_len, hidden)
         enc_out, enc_state = self.encoder(src_tokens, src_lengths)
         # Build source mask: True for padding positions
         max_src_len = src_tokens.size(1)

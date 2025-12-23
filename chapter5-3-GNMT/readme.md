@@ -1,0 +1,3 @@
+- train.py中有训练语句
+- infer.py中有推理语句
+- 数据集过大时，会卡在data.py中` pd.read_csv(csv_path, nrows=1000) `，但是太小翻译效果不良

@@ -47,7 +47,7 @@ def train_one_epoch(model, dataloader, optimizer, criterion, device, clip_norm, 
         src_len = src_len.to(device)
         tgt = tgt.to(device)
 
-        # Shifted target for teacher forcing
+        # Shifted target for teacher forcing 使得对应位置为需要预测的词
         decoder_in = tgt[:, :-1]
         target = tgt[:, 1:]
 
@@ -76,6 +76,8 @@ def main():
     args = parse_args()
     device = torch.device(args.device)
 
+    # 百万级数据，直接卡这里了不搞了
+    print("Creating dataloader...")
     dataloader, dataset = create_dataloader(
         csv_path=args.csv,
         batch_size=args.batch_size,
@@ -86,6 +88,7 @@ def main():
     )
 
     vocab_size = len(dataset.vocab)
+    print("Building model...")
     model = GNMT(
         src_vocab=vocab_size,
         tgt_vocab=vocab_size,
