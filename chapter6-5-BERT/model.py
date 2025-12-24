@@ -73,7 +73,12 @@ class BERTModel(nn.Module):
             token_type_ids = torch.zeros_like(input_ids)
         if attention_mask is None:
             attention_mask = torch.ones_like(input_ids)
+        # (batch_size, seq_len) -> (batch_size, seq_len, hidden_size)
         embeddings = self.embedding(input_ids, token_type_ids)
+        # (batch_size, seq_len, hidden_size)
+        # -> (batch_size, seq_len, hidden_size)
+        # -> (batch_size, layers, seq_len, hidden_size)
+        # -> (batch_size, layers, num_heads, seq_len, seq_len)
         encoder_output = self.encoder(embeddings, attention_mask)
         sequence_output = encoder_output[0]
         all_hidden_states = (
