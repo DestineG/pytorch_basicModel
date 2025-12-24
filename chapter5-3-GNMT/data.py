@@ -107,7 +107,7 @@ class TranslationDataset(Dataset):
 
         # 卡在这里了 减少数据量
         print("Reading data...")
-        self.df = pd.read_csv(csv_path, nrows=1000)
+        self.df = pd.read_csv(csv_path, nrows=20000)
         self.src_col = src_col
         self.tgt_col = tgt_col
         self.tokenizer = tokenizer
